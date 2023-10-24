@@ -1,5 +1,5 @@
 class ProductAccess
   class << self
-    def create(user:, type);end
+    def create(user:, product:); end
   end
 end
