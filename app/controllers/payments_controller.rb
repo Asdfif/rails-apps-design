@@ -1,17 +1,14 @@
 class PaymentsController < ApplicationController
   CURRENCY = 'RUB'
 
-  before_action :find_product, only: %i[create]
-
   def create
-    return head :not_found unless @product
-
     result = Service::GatewayProcessor.call(
       gateway: CloudPayment,
       current_user: current_user,
-      amount: payment_params[:amount] * 100,
+      amount: payment_params[:amount],
       currency: CURRENCY,
-      product: @product
+      product: @product,
+      product_id: payment_params[:product_id]
     )
 
     if result.success?
@@ -23,11 +20,7 @@ class PaymentsController < ApplicationController
 
   private
 
-  def find_product
-    @product = Product.find_by_id(params[:product_id])
-  end
-
   def payment_params
-    params.permit(:amount)
+    params.permit(:amount, :product_id)
   end
 end
