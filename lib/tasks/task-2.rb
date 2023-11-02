@@ -1,10 +1,9 @@
 class PrepareDelivery
   class DeliveryError < StandardError; end
-  class DeliveryDateError < DeliveryError; end
-  class DeliveryAddressError < DeliveryError; end
-  class DeliveryTruckError < DeliveryError; end
 
   TRUCKS = { kamaz: 3000, gazel: 1000 }.freeze
+  REQUIRED_ADDRESS_PARAMS = %w[house city street].freeze
+
   ERROR_STATUS = "error".freeze
 
   attr_reader :order, :user
@@ -12,13 +11,19 @@ class PrepareDelivery
   def initialize(order, user)
     @order = order
     @user = user
+    @result = {
+      truck: nil,
+      weight: nil,
+      order_number: order.id,
+      address: destination_address,
+      status: :ok
+    }
   end
 
   def perform(destination_address, delivery_date)
-    init_result
     validate_delivery_date!(delivery_date)
     validate_destination_address!(destination_address)
-    check_truck!
+    check_weight!
 
    rescue DeliveryError
     result[:satus] = ERROR_STATUS
@@ -30,20 +35,18 @@ class PrepareDelivery
 
   attr_reader :result
 
-  def init_result
-    @result = { truck: nil, weight: nil, order_number: order.id, address: destination_address, status: :ok }
-  end
-
   def validate_delivery_date!(delivery_date)
-    raise DeliveryDateError.new("Дата доставки уже прошла") if delivery_date < Time.current
+    raise DeliveryError.new("Дата доставки уже прошла") if delivery_date < Time.current
   end
 
   def validate_destination_address!(destination_address)
-    raise DeliveryAddressError.new("Нет адреса") if destination_address.city.empty? || destination_address.street.empty? || destination_address.house.empty?
+    REQUIRED_ADDRESS_PARAMS.each do |addr|
+      raise DeliveryError.new("Invalid #{addr}") if destination_address.try(addr).blank?
+    end
   end
 
-  def check_truck!
-    raise DeliveryTruckError.new("Нет машин") unless set_available_truck
+  def check_weight!
+    raise DeliveryError.new("Нет машин грузоподъемностью более #{weight}") unless set_available_truck
   end
 
   def set_available_truck
